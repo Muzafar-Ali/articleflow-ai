@@ -119,6 +119,38 @@ Expected response:
 }
 ```
 
+### Background Worker
+
+ArticleFlow AI uses separate API and background-worker processes.
+
+Start the development worker:
+
+```bash
+npm run dev:worker
+```
+
+The worker uses shared Zod-validated configuration and Pino
+structured JSON logging.
+
+**Current implementation:** The worker is a lifecycle bootstrap.
+It remains active, supports SIGINT/SIGTERM shutdown, and does
+not process jobs yet.
+
+BullMQ job processing, retries, and durable execution will be
+introduced in M3.
+
+The temporary bootstrap heartbeat will be removed when the
+BullMQ worker lifecycle is implemented.
+
+To run the compiled worker:
+
+```bash
+npm run build
+npm run start:worker
+```
+
+Stop the worker using Ctrl+C.
+
 ### Quality Checks
 
 ```bash
