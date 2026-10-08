@@ -8,16 +8,16 @@ const logLevelSchema = z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace
 
 const environmentSchema = z.object({
   NODE_ENV: nodeEnvironmentSchema,
-
   APP_VERSION: z.string().trim().min(1).default(APP_VERSION),
-
   LOG_LEVEL: logLevelSchema.default('info'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
 
 export interface AppConfig {
   readonly environment: z.infer<typeof nodeEnvironmentSchema>;
   readonly appVersion: string;
   readonly logLevel: z.infer<typeof logLevelSchema>;
+  readonly port: number;
 }
 
 export function loadConfig(environmentVariables: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -38,5 +38,6 @@ export function loadConfig(environmentVariables: NodeJS.ProcessEnv = process.env
     environment: result.data.NODE_ENV,
     appVersion: result.data.APP_VERSION,
     logLevel: result.data.LOG_LEVEL,
+    port: result.data.PORT,
   });
 }

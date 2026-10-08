@@ -45,3 +45,98 @@ human-in-the-loop execution.
 ```bash
 npm ci
 ```
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 24.21.0
+- npm 12.x
+- Docker Desktop with Linux containers enabled
+
+### Install Dependencies
+
+```bash
+npm ci
+```
+
+### Environment Configuration
+
+Copy `.env.example` to `.env` and configure the required
+environment variables.
+
+Do not commit `.env` or application credentials.
+
+### Start Infrastructure
+
+```bash
+docker compose up -d postgres redis
+```
+
+The local infrastructure includes:
+
+| Service       | Host Address    |
+| ------------- | --------------- |
+| PostgreSQL 17 | localhost:55432 |
+| Redis 7       | localhost:6379  |
+
+PostgreSQL uses port 5432 inside the Docker network.
+
+Verify container health:
+
+```bash
+docker compose ps
+docker compose exec postgres pg_isready -U articleflow -d articleflow
+docker compose exec redis redis-cli ping
+```
+
+Stop infrastructure without deleting persistent volumes:
+
+```bash
+docker compose down
+```
+
+### Start the API
+
+```bash
+npm run dev:api
+```
+
+The API listens on port 3000 by default.
+
+Liveness endpoint:
+
+```text
+GET http://localhost:3000/health/live
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "service": "articleflow-api"
+}
+```
+
+### Quality Checks
+
+```bash
+npm run check
+```
+
+The quality pipeline runs formatting validation, linting,
+TypeScript type checking, Jest tests, and the production build.
+
+### Current Implementation Scope
+
+- Modular TypeScript architecture
+- Validated application configuration
+- Express API bootstrap
+- Pino structured logging
+- HTTP liveness endpoint
+- PostgreSQL and Redis local infrastructure
+- Automated quality checks and GitHub Actions CI
+
+Durable jobs, LangGraph execution, human approval, publishing,
+and complete observability will be introduced in subsequent milestones.

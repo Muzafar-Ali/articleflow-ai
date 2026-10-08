@@ -14,6 +14,7 @@ describe('loadConfig', () => {
       environment: 'production',
       appVersion: '1.2.3',
       logLevel: 'warn',
+      port: 3000,
     });
   });
 
@@ -44,5 +45,23 @@ describe('loadConfig', () => {
     });
 
     expect(Object.isFrozen(config)).toBe(true);
+  });
+
+  it('rejects an invalid HTTP port', () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'development',
+        PORT: '70000',
+      }),
+    ).toThrow('PORT');
+  });
+
+  it('accepts a valid configured HTTP port', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      PORT: '4000',
+    });
+
+    expect(config.port).toBe(4000);
   });
 });
