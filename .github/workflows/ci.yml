@@ -22,6 +22,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://articleflow_ci:ci_only_password@127.0.0.1:5432/articleflow_ci?schema=public
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_USER: articleflow_ci
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: articleflow_ci
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U articleflow_ci -d articleflow_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -45,5 +67,14 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Validate Prisma schema
+        run: npm run db:validate
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
       - name: Run quality gates
         run: npm run check
+
+      - name: Verify PostgreSQL connectivity
+        run: npm run db:check:compiled

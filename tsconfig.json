@@ -30,6 +30,9 @@
 
     "resolveJsonModule": true,
 
+    // This tells TypeScript to rewrite imports ending in .ts to .js when compiling, so the generated Prisma Client remains compatible with native ESM
+    "rewriteRelativeImportExtensions": true,
+
     "skipLibCheck": true,
     "noEmitOnError": true,
 
