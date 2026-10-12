@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'generated/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'generated/**', 'src/generated/**'],
 
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
@@ -35,6 +35,13 @@ export default tseslint.config(
         'error',
         {
           allowDefaultCaseForExhaustiveSwitch: false,
+        },
+      ],
+
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
         },
       ],
 

@@ -67,6 +67,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      # Check production dependencies for security vulnerabilities
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
+
+
       - name: Validate Prisma schema
         run: npm run db:validate
 
