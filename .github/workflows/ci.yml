@@ -95,12 +95,40 @@ jobs:
             -p 127.0.0.1:3000:3000 \
             articleflow-ai:ci
 
-          curl --fail --silent --show-error \
-            --retry 12 \
-            --retry-delay 2 \
-            --retry-connrefused \
-            http://127.0.0.1:3000/health/live \
-            | grep -F '"service":"articleflow-api"'
+          ready=false
+
+          # Wait up to 30 seconds for Express to become ready.
+          for attempt in $(seq 1 30); do
+            echo "Checking API readiness (attempt $attempt/30)"
+
+            if curl --fail --silent --max-time 2 \
+              -o /tmp/articleflow-api-response.json \
+              http://127.0.0.1:3000/health/live \
+              && grep -Fq '"service":"articleflow-api"' \
+              /tmp/articleflow-api-response.json; then
+              ready=true
+              break
+            fi
+
+            # Fail immediately if Node.js has crashed.
+            if [ "$(docker inspect -f '{{.State.Running}}' articleflow-ci-api)" != "true" ]; then
+              echo "API container exited unexpectedly"
+              docker inspect -f 'ExitCode={{.State.ExitCode}} Error={{.State.Error}}' articleflow-ci-api
+              docker logs articleflow-ci-api
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            echo "API did not become ready within the timeout"
+            docker ps -a --filter name=articleflow-ci-api
+            docker logs articleflow-ci-api
+            exit 1
+          fi
+
+          echo "API readiness verified"
 
           docker stop -t 10 articleflow-ci-api
 
@@ -116,10 +144,39 @@ jobs:
             articleflow-ai:ci \
             node dist/worker/index.js
 
-          sleep 2
+          started=false
 
+          # Wait up to 20 seconds for worker initialization.
+          for attempt in $(seq 1 20); do
+            echo "Checking worker startup (attempt $attempt/20)"
+
+            if docker logs articleflow-ci-worker 2>&1 \
+              | grep -Fq '"msg":"ArticleFlow worker initialized"'; then
+              started=true
+              break
+            fi
+
+            if [ "$(docker inspect -f '{{.State.Running}}' articleflow-ci-worker)" != "true" ]; then
+              echo "Worker container exited unexpectedly"
+              docker logs articleflow-ci-worker
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          if [ "$started" != "true" ]; then
+            echo "Worker did not initialize within the timeout"
+            docker logs articleflow-ci-worker
+            exit 1
+          fi
+
+          # Verify the worker is still running.
           test "$(docker inspect -f '{{.State.Running}}' articleflow-ci-worker)" = "true"
 
+          echo "Worker startup verified"
+
+          # Verify graceful shutdown.
           docker stop -t 10 articleflow-ci-worker
 
           docker logs articleflow-ci-worker \
