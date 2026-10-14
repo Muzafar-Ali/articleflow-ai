@@ -20,7 +20,7 @@ jobs:
   quality:
     name: Quality Gates
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     env:
       NODE_ENV: test
@@ -82,3 +82,50 @@ jobs:
 
       - name: Verify PostgreSQL connectivity
         run: npm run db:check:compiled
+
+      - name: Build production Docker image
+        run: docker build --tag articleflow-ai:ci .
+
+      - name: Smoke test API container
+        run: |
+          set -euo pipefail
+
+          docker run --init -d \
+            --name articleflow-ci-api \
+            -p 127.0.0.1:3000:3000 \
+            articleflow-ai:ci
+
+          curl --fail --silent --show-error \
+            --retry 12 \
+            --retry-delay 2 \
+            --retry-connrefused \
+            http://127.0.0.1:3000/health/live \
+            | grep -F '"service":"articleflow-api"'
+
+          docker stop -t 10 articleflow-ci-api
+
+          docker logs articleflow-ci-api \
+            | grep -F '"msg":"API shutdown completed"'
+
+      - name: Smoke test worker container
+        run: |
+          set -euo pipefail
+
+          docker run --init -d \
+            --name articleflow-ci-worker \
+            articleflow-ai:ci \
+            node dist/worker/index.js
+
+          sleep 2
+
+          test "$(docker inspect -f '{{.State.Running}}' articleflow-ci-worker)" = "true"
+
+          docker stop -t 10 articleflow-ci-worker
+
+          docker logs articleflow-ci-worker \
+            | grep -F '"msg":"Worker shutdown completed"'
+
+      - name: Clean up smoke test containers
+        if: always()
+        run: |
+          docker rm -f articleflow-ci-api articleflow-ci-worker 2>/dev/null || true
