@@ -1,0 +1,8 @@
+# Automatically detect text files.
+* text=auto
+
+# Always use LF for cross-platform configuration files.
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf

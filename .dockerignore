@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+dist
+coverage
+.env
+.env.*
+src/generated/prisma
+tests
+docs
+docker
+README.md
+*.log
+*.tsbuildinfo
