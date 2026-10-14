@@ -1,18 +1,16 @@
 # ArticleFlow AI
 
-Stateful AI content publishing agent built with LangGraph,
-Node.js, TypeScript, PostgreSQL, Redis/BullMQ, OpenAI and Notion.
+Stateful AI content publishing agent built with LangGraph, Node.js, TypeScript, PostgreSQL, Redis/BullMQ, OpenAI and Notion.
 
 ## Status
 
 ArticleFlow AI is currently under active development.
 
-Current milestone: M0 — Repository Baseline.
+**Current milestone:** M1 — Infrastructure and Application Bootstrap (Completed).
 
 ## Architecture
 
-ArticleFlow AI uses a single modular TypeScript repository with separate
-API and background-worker runtime processes.
+ArticleFlow AI uses a modular TypeScript repository with separate API and background-worker runtime processes.
 
 Major application modules:
 
@@ -28,83 +26,92 @@ Major application modules:
 - Observability
 - Configuration
 
-PostgreSQL will own durable product state.
+Some modules are planned for subsequent milestones.
 
-BullMQ and Redis will provide asynchronous work delivery.
+PostgreSQL owns durable application and business state.
 
-LangGraph will own workflow orchestration, routing, checkpoints and
-human-in-the-loop execution.
+Prisma 7 provides database access using the PostgreSQL driver adapter.
+
+BullMQ and Redis will provide asynchronous work delivery, retries, and background processing.
+
+LangGraph will own workflow orchestration, routing, checkpoints, and human-in-the-loop execution.
 
 ## Requirements
 
 - Node.js 24.21.0
-- npm 12.x
-
-## Installation
-
-```bash
-npm ci
-```
+- npm 12.0.2
+- Docker Desktop with Linux containers enabled
 
 ## Local Development
 
 ### Prerequisites
 
 - Node.js 24.21.0
-- npm 12.x
+- npm 12.0.2
 - Docker Desktop with Linux containers enabled
 
-### Install Dependencies
+### Installation
 
 ```bash
 npm ci
 ```
 
-### Environment Configuration
+Create `.env` from `.env.example` and configure the required environment variables.
 
-Copy `.env.example` to `.env` and configure the required
-environment variables.
+Important local configuration:
 
-Do not commit `.env` or application credentials.
+| Variable            | Description                                |
+| ------------------- | ------------------------------------------ |
+| NODE_ENV            | development, test, or production           |
+| PORT                | Express API port (default: 3000)           |
+| POSTGRES_PASSWORD   | Local PostgreSQL password                  |
+| DATABASE_URL        | PostgreSQL URL for host-based development  |
+| DATABASE_URL_DOCKER | PostgreSQL URL for Docker Compose services |
+
+Use these database addresses:
+
+- Host application: `127.0.0.1:55432`
+- Docker application: `postgres:5432`
+
+Do not commit `.env` or real credentials.
 
 ### Start Infrastructure
 
 ```bash
 docker compose up -d postgres redis
-```
-
-The local infrastructure includes:
-
-| Service       | Host Address    |
-| ------------- | --------------- |
-| PostgreSQL 17 | localhost:55432 |
-| Redis 7       | localhost:6379  |
-
-PostgreSQL uses port 5432 inside the Docker network.
-
-Verify container health:
-
-```bash
 docker compose ps
-docker compose exec postgres pg_isready -U articleflow -d articleflow
-docker compose exec redis redis-cli ping
 ```
 
-Stop infrastructure without deleting persistent volumes:
+Local infrastructure:
+
+| Service       | Host Port |
+| ------------- | --------- |
+| PostgreSQL 17 | 55432     |
+| Redis 7       | 6379      |
+
+Persistent Docker volumes retain PostgreSQL and Redis data.
+
+### Run the API and Worker Locally
+
+Generate Prisma Client:
 
 ```bash
-docker compose down
+npm run db:generate
 ```
 
-### Start the API
+Start the API:
 
 ```bash
 npm run dev:api
 ```
 
-The API listens on port 3000 by default.
+Start the worker in a separate terminal:
 
-Liveness endpoint:
+```bash
+npm run dev:worker
+```
+
+API liveness endpoint:
 
 ```text
 GET http://localhost:3000/health/live
@@ -119,56 +126,145 @@ Expected response:
 }
 ```
 
-### Background Worker
-
-ArticleFlow AI uses separate API and background-worker processes.
-
-Start the development worker:
+Verify database connectivity:
 
 ```bash
-npm run dev:worker
+npm run db:check
 ```
 
-The worker uses shared Zod-validated configuration and Pino
-structured JSON logging.
+### Run with Docker Compose
 
-**Current implementation:** The worker is a lifecycle bootstrap.
-It remains active, supports SIGINT/SIGTERM shutdown, and does
-not process jobs yet.
-
-BullMQ job processing, retries, and durable execution will be
-introduced in M3.
-
-The temporary bootstrap heartbeat will be removed when the
-BullMQ worker lifecycle is implemented.
-
-To run the compiled worker:
+Build and start the application services:
 
 ```bash
-npm run build
-npm run start:worker
+docker compose up -d --build api worker
 ```
 
-Stop the worker using Ctrl+C.
+This starts four services:
 
-### Quality Checks
+- API — Express HTTP server
+- Worker — independent Node.js process
+- PostgreSQL — relational database
+- Redis — infrastructure for future BullMQ processing
+
+Check container status:
+
+```bash
+docker compose ps
+```
+
+Inspect application logs:
+
+```bash
+docker compose logs --tail=50 api worker
+```
+
+Verify Prisma connectivity inside Docker:
+
+```bash
+docker compose exec worker node dist/database/check-connection.js
+```
+
+Stop application services:
+
+```bash
+docker compose stop api worker
+```
+
+Stop all services while preserving volumes:
+
+```bash
+docker compose down
+```
+
+Do not use `docker compose down -v` unless intentionally deleting the persistent database and Redis volumes.
+
+### Database Tooling
+
+Validate the Prisma schema:
+
+```bash
+npm run db:validate
+```
+
+Generate Prisma Client:
+
+```bash
+npm run db:generate
+```
+
+Verify database connectivity:
+
+```bash
+npm run db:check
+```
+
+The application uses Prisma 7 with the PostgreSQL driver adapter.
+
+Business entities and their migrations will be introduced in later milestones.
+
+### Quality Assurance
+
+Run all local quality gates:
 
 ```bash
 npm run check
 ```
 
-The quality pipeline runs formatting validation, linting,
-TypeScript type checking, Jest tests, and the production build.
+This runs:
 
-### Current Implementation Scope
+- Prettier formatting verification
+- ESLint with strict TypeScript rules
+- TypeScript type checking
+- Jest unit and HTTP integration tests
+- Compiled application build
 
-- Modular TypeScript architecture
-- Validated application configuration
-- Express API bootstrap
-- Pino structured logging
-- HTTP liveness endpoint
-- PostgreSQL and Redis local infrastructure
-- Automated quality checks and GitHub Actions CI
+GitHub Actions additionally performs:
 
-Durable jobs, LangGraph execution, human approval, publishing,
-and complete observability will be introduced in subsequent milestones.
+- Locked dependency installation
+- Production dependency security audit
+- Prisma schema validation and client generation
+- PostgreSQL connectivity verification
+- Production Docker image build
+- API container startup and shutdown smoke test
+- Worker container startup and shutdown smoke test
+
+### M1 — Infrastructure and Application Bootstrap
+
+Completed capabilities:
+
+- Modular TypeScript application structure
+- Independent API and worker runtimes
+- Express 5 HTTP server
+- Zod-validated environment configuration
+- Pino structured JSON logging
+- SIGINT/SIGTERM graceful process shutdown
+- PostgreSQL 17 and Redis 7 with Docker Compose
+- Prisma 7 database client and PostgreSQL adapter
+- Real PostgreSQL connectivity verification
+- Multi-stage Docker build
+- Non-root application containers
+- API Docker health check
+- Persistent infrastructure volumes
+- GitHub Actions CI with PostgreSQL integration and Docker smoke tests
+
+### Current Limitations
+
+M1 establishes the application and infrastructure foundation.
+It does not yet implement the full content publishing workflow.
+
+- The background worker currently supports process startup and
+  graceful shutdown but does not process BullMQ jobs.
+- Redis is running, but background job delivery and retries
+  are not yet implemented.
+- The `/health/live` endpoint checks HTTP process liveness,
+  not PostgreSQL or Redis readiness.
+- Prisma connectivity is implemented, but business models and
+  application database migrations have not yet been introduced.
+- Telegram ingestion, durable job processing, LangGraph workflows,
+  human approval, and Notion publishing remain future milestones.
+
+These capabilities will be implemented and verified incrementally.
+
+- Persistent infrastructure volumes
+- GitHub
