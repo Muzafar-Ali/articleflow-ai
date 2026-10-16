@@ -8,3 +8,87 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum AgentJobStatus {
+  CREATED
+  QUEUED
+  RUNNING
+  WAITING_APPROVAL
+  FAILED_RETRYABLE
+  FAILED_FINAL
+  COMPLETED
+  CANCELLED
+}
+
+enum OutboxStatus {
+  PENDING
+  DISPATCHED
+}
+
+model User {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  telegramUserId BigInt   @unique @map("telegram_user_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  updates TelegramUpdate[]
+  jobs    AgentJob[]
+
+  @@map("users")
+}
+
+model TelegramUpdate {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  updateId   BigInt   @unique @map("telegram_update_id")
+  userId     String   @map("user_id") @db.Uuid
+  chatId     BigInt   @map("chat_id")
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  job  AgentJob?
+
+  @@index([userId, receivedAt])
+  @@map("telegram_updates")
+}
+
+model AgentJob {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  sourceUpdateId  String         @unique @map("source_update_id") @db.Uuid
+  idempotencyKey  String         @unique @map("idempotency_key")
+  status          AgentJobStatus @default(CREATED)
+  requestJson     Json           @map("request_json")
+  approvalRequired Boolean       @default(false) @map("approval_required")
+  currentNode     String?        @map("current_node")
+  revisionCount   Int            @default(0) @map("revision_count")
+  attemptCount    Int            @default(0) @map("attempt_count")
+  lastErrorCode   String?        @map("last_error_code")
+  lastErrorMessage String?       @map("last_error_message")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt     DateTime?      @map("completed_at") @db.Timestamptz(3)
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sourceUpdate TelegramUpdate @relation(fields: [sourceUpdateId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("agent_jobs")
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id") @db.Uuid
+  eventType     String       @map("event_type")
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attemptCount  Int          @default(0) @map("attempt_count")
+  nextAttemptAt DateTime     @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  dispatchedAt  DateTime?    @map("dispatched_at") @db.Timestamptz(3)
+
+  @@index([status, nextAttemptAt])
+  @@index([aggregateId])
+  @@map("outbox_events")
+}

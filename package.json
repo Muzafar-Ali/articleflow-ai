@@ -16,6 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest --runInBand",
+    "test:db": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config jest.database.config.cjs --runInBand",
+    "test:db:local": "node --env-file=.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --config jest.database.config.cjs --runInBand",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",

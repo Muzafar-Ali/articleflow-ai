@@ -77,11 +77,20 @@ jobs:
       - name: Generate Prisma Client
         run: npm run db:generate
 
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
+      - name: Verify migration status
+        run: npx prisma migrate status
+
       - name: Run quality gates
         run: npm run check
 
       - name: Verify PostgreSQL connectivity
         run: npm run db:check:compiled
+
+      - name: Test PostgreSQL constraints and transaction rollback
+        run: npm run test:db
 
       - name: Build production Docker image
         run: docker build --tag articleflow-ai:ci .
