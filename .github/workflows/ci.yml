@@ -102,6 +102,8 @@ jobs:
           docker run --init -d \
             --name articleflow-ci-api \
             -p 127.0.0.1:3000:3000 \
+            -e DATABASE_URL \
+            -e TELEGRAM_WEBHOOK_SECRET=ci_only_webhook_secret_0123456789abcdef \
             articleflow-ai:ci
 
           ready=false

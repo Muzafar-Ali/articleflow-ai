@@ -1,8 +1,15 @@
 import express from 'express';
 
 import type { Express } from 'express';
+import type { TelegramWebhookDependencies } from './routes/telegram-webhook.routes.js';
 
-export function createApp(): Express {
+import { createTelegramWebhookRouter } from './routes/telegram-webhook.routes.js';
+
+interface AppOptions {
+  telegram?: TelegramWebhookDependencies;
+}
+
+export function createApp(options: AppOptions = {}): Express {
   const app = express();
 
   app.disable('x-powered-by');
@@ -13,6 +20,10 @@ export function createApp(): Express {
       service: 'articleflow-api',
     });
   });
+
+  if (options.telegram) {
+    app.use('/webhooks/telegram', createTelegramWebhookRouter(options.telegram));
+  }
 
   return app;
 }
